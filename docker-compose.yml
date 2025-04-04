@@ -1,0 +1,23 @@
+# docker-compose.yml
+
+version: '3.8' # Указываем версию синтаксиса Docker Compose
+
+services:
+  # Определяем сервис для базы данных
+  db:
+    image: postgres:15 # Используем официальный образ PostgreSQL версии 15
+    container_name: postgres_db_apartments # Имя контейнера для удобства
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/ # Связываем том для сохранения данных БД между перезапусками контейнера
+    environment:
+      # Переменные окружения для настройки PostgreSQL
+      POSTGRES_DB: apartments_db # Имя базы данных, которая будет создана
+      POSTGRES_USER: apartment_user # Имя пользователя для подключения к БД
+      POSTGRES_PASSWORD: complexpassword123 # Пароль для пользователя (ЗАМЕНИ НА СВОЙ НАДЕЖНЫЙ ПАРОЛЬ!)
+    ports:
+      - "5433:5432" # Пробрасываем порт из контейнера (5432) на твой компьютер (5433). Можно использовать 5432:5432, если порт 5432 свободен.
+    restart: unless-stopped # Политика перезапуска контейнера
+
+volumes:
+  # Определяем том для хранения данных PostgreSQL
+  postgres_data:
