@@ -2,6 +2,8 @@
 from django.db import models
 from django.conf import settings # Для ссылки на модель User
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.exceptions import ValidationError # Для валидации в модели
+from django.utils import timezone # Для работы со временем
 
 class Amenity(models.Model):
     """Модель для удобств (WiFi, Парковка и т.д.)"""
@@ -100,3 +102,63 @@ class Review(models.Model):
     def __str__(self):
         # Возвращаем начало текста отзыва
         return f"Отзыв от {self.author.username} на {self.apartment.title}: {self.text[:30]}..."
+    
+
+# --- Модель Booking ---
+class Booking(models.Model):
+    """Модель для бронирования квартиры."""
+
+    class BookingStatus(models.TextChoices):
+        PENDING = 'PE', 'Ожидает подтверждения'
+        CONFIRMED = 'CO', 'Подтверждено'
+        CANCELLED = 'CA', 'Отменено'
+        COMPLETED = 'CM', 'Завершено'
+
+    apartment = models.ForeignKey(
+        Apartment,
+        on_delete=models.CASCADE,
+        related_name='bookings',
+        verbose_name="Квартира"
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='bookings',
+        verbose_name="Арендатор"
+    )
+    check_in_date = models.DateField(verbose_name="Дата заезда")
+    check_out_date = models.DateField(verbose_name="Дата выезда")
+    total_price = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Общая стоимость")
+    status = models.CharField(
+        max_length=2,
+        choices=BookingStatus.choices,
+        default=BookingStatus.CONFIRMED,
+        verbose_name="Статус бронирования"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def number_of_nights(self):
+        if self.check_out_date and self.check_in_date:
+            delta = self.check_out_date - self.check_in_date
+            return delta.days
+        return 0
+
+    def clean(self):
+        super().clean()
+        if self.check_in_date and self.check_out_date:
+            if self.check_in_date >= self.check_out_date:
+                raise ValidationError("Дата выезда должна быть позже даты заезда.")
+            # Проверку на прошлое можно делать и здесь, и в сериализаторе
+            if self.check_in_date < timezone.now().date():
+                 raise ValidationError("Дата заезда не может быть в прошлом.")
+        # Проверка на пересечение дат остается в сериализаторе
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Бронирование"
+        verbose_name_plural = "Бронирования"
+
+    def __str__(self):
+        return f"Бронь {self.user.username} на {self.apartment.title} ({self.check_in_date} - {self.check_out_date})"

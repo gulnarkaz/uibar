@@ -2,12 +2,10 @@
 from rest_framework import viewsets, permissions, status, filters, generics, serializers # Добавляем filters и serializers
 from rest_framework.response import Response # Добавляем Response
 from django_filters.rest_framework import DjangoFilterBackend # Добавляем DjangoFilterBackend
-from .models import Apartment, Amenity # Импортируем модели
-from .serializers import ApartmentSerializer, AmenitySerializer # Импортируем сериализаторы
-from .permissions import IsOwnerOrReadOnly # Импортируем пользовательские права доступа
-from .models import Review
-from .serializers import ReviewSerializer
-from .permissions import IsAuthorOrReadOnly
+from .models import Apartment, Amenity, Booking, Review # Импортируем модели
+from .serializers import ApartmentSerializer, AmenitySerializer, ReviewSerializer, BookingSerializer # Импортируем сериализаторы
+from .permissions import IsOwnerOrReadOnly, IsAuthorOrReadOnly # Импортируем пользовательские права доступа
+
 # --- ViewSet для Удобств (Amenity) ---
 # Создадим простой ViewSet только для чтения списка удобств,
 # это может быть полезно для фронтенда, чтобы знать, какие удобства доступны.
@@ -89,3 +87,27 @@ class ReviewViewSet(viewsets.ModelViewSet):
         if not self.request.user.is_authenticated:
              raise serializers.ValidationError("Authentication required to post reviews.")
         serializer.save(author=self.request.user)
+
+class BookingViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet для создания и просмотра СВОИХ бронирований.
+    """
+    serializer_class = BookingSerializer
+    permission_classes = [permissions.IsAuthenticated] # Только авторизованные
+
+    # Разрешаем только нужные методы (GET для списка/деталей, POST для создания)
+    http_method_names = ['get', 'post', 'head', 'options']
+
+    def get_queryset(self):
+        """
+        Пользователь видит только свои бронирования.
+        """
+        return Booking.objects.filter(user=self.request.user).select_related('apartment', 'user').order_by('-created_at')
+
+    def get_serializer_context(self):
+        """
+        Передаем request в контекст сериализатора (нужно для serializer.create).
+        """
+        context = super().get_serializer_context()
+        context.update({"request": self.request})
+        return context

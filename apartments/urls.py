@@ -1,7 +1,7 @@
 # apartments/urls.py
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import ApartmentViewSet, AmenityViewSet, MyApartmentListView, ReviewViewSet # Импортируем наши ViewSet'ы
+from .views import ApartmentViewSet, AmenityViewSet, MyApartmentListView, ReviewViewSet, BookingViewSet # Импортируем наши ViewSet'ы
 
 app_name = 'apartments' # Имя приложения для пространства имен URL (не обязательно для API, но хорошая практика)
 
@@ -18,6 +18,7 @@ router.register(r'apartments', ApartmentViewSet, basename='apartment')
 # Базовое имя для имен URL: 'amenity' (-> 'amenity-list', 'amenity-detail')
 router.register(r'amenities', AmenityViewSet, basename='amenity')
 router.register(r'reviews', ReviewViewSet, basename='review')
+router.register(r'bookings', BookingViewSet, basename='booking')
 # urlpatterns теперь содержат все URL-адреса, сгенерированные роутером
 urlpatterns = [
     # Мы включаем сгенерированные роутером URL без дополнительного префикса здесь,

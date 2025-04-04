@@ -1,7 +1,8 @@
 # apartments/serializers.py
 from rest_framework import serializers
-from .models import Apartment, Amenity, Review # Импортируем обе модели и Review
+from .models import Apartment, Booking, Amenity, Review # Импортируем обе модели и Review
 from auth_app.serializers import UserSerializer # Импортируем UserSerializer для владельца
+from django.utils import timezone
 
 # --- Сериализатор для Удобств ---
 class AmenitySerializer(serializers.ModelSerializer):
@@ -78,21 +79,6 @@ class ReviewSerializer(serializers.ModelSerializer):
         # Автор назначается автоматически, дата создания тоже
         read_only_fields = ['id', 'author', 'created_at']
 
-    # --- Опционально: Улучшение отображения apartment при чтении ---
-    # Чтобы при GET запросе видеть не просто ID квартиры, а ее данные,
-    # можно использовать depth или переопределить to_representation:
-    # Либо в Meta:
-    # depth = 1 # Показывает вложенные объекты на 1 уровень (Apartment и Author)
-
-    # Либо так (более гибко):
-    # def to_representation(self, instance):
-    #     representation = super().to_representation(instance)
-    #     # Используем ApartmentSerializer для поля apartment, но только основные поля
-    #     representation['apartment'] = ApartmentSerializer(instance.apartment, context=self.context, fields=('id', 'title', 'city')).data
-    #     return representation
-    # Для этого нужно будет импортировать или настроить ApartmentSerializer соответственно.
-    # Пока оставим вывод ID квартиры для простоты.
-    # --------------------------------------------------------------
 
     def validate(self, data):
         """
@@ -111,3 +97,65 @@ class ReviewSerializer(serializers.ModelSerializer):
         if self.instance is None and Review.objects.filter(apartment=apartment, author=author).exists():
             raise serializers.ValidationError("You have already reviewed this apartment.")
         return data
+
+class LimitedApartmentSerializer(serializers.ModelSerializer):
+    # Можно показать только ID владельца или его username
+    owner = serializers.ReadOnlyField(source='owner.username') # Показываем username владельца
+
+    class Meta:
+        model = Apartment
+        # Указываем только нужные поля
+        fields = ('id', 'title', 'price', 'city', 'owner')
+        
+class BookingSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    apartment_details = ApartmentSerializer(source='apartment', read_only=True)
+    apartment = serializers.PrimaryKeyRelatedField(
+        queryset=Apartment.objects.filter(is_active=True),
+        write_only=True
+    )
+
+    class Meta:
+        model = Booking
+        fields = [
+            'id',
+            'user',             # Пользователь (read-only)
+            'apartment',        # ID квартиры (write-only)
+            'apartment_details',# Краткие данные квартиры (read-only) <--- ИЗМЕНЕНИЕ
+            'check_in_date',
+            'check_out_date',
+            'number_of_nights', # Наше @property (read-only)
+            'total_price',      # Цена (read-only, будет рассчитана)
+            'status',           # Статус (read-only, будет установлен)
+            'created_at'
+        ]
+        # Обновляем read_only_fields
+        read_only_fields = ['id', 'user', 'total_price', 'status', 'created_at', 'number_of_nights', 'apartment_details']
+
+    # --- Метод validate (упрощенный, без проверки доступности) ---
+    def validate(self, data):
+        check_in = data.get('check_in_date')
+        check_out = data.get('check_out_date')
+        if check_in >= check_out:
+            raise serializers.ValidationError("Дата выезда должна быть позже даты заезда.")
+        if check_in < timezone.now().date():
+            raise serializers.ValidationError("Дата заезда не может быть в прошлом.")
+        # !!! Не забыть вернуть проверку доступности позже !!!
+        return data
+
+    # --- Метод create (без изменений) ---
+    def create(self, validated_data):
+        # ... (код метода create как был) ...
+        apartment = validated_data.get('apartment')
+        check_in = validated_data.get('check_in_date')
+        check_out = validated_data.get('check_out_date')
+        request = self.context.get('request')
+        nights = (check_out - check_in).days
+        if nights <= 0: raise serializers.ValidationError("Некорректное количество ночей.")
+        total_price = nights * apartment.price
+        booking = Booking.objects.create(
+            user=request.user, apartment=apartment, check_in_date=check_in,
+            check_out_date=check_out, total_price=total_price, status=Booking.BookingStatus.CONFIRMED
+        )
+        return booking
+
