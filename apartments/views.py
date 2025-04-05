@@ -6,7 +6,8 @@ from django_filters.rest_framework import DjangoFilterBackend # Добавляе
 from .models import Apartment, Amenity, Booking, Review, ApartmentPhoto # Импортируем модели
 from .serializers import ApartmentSerializer, AmenitySerializer, ReviewSerializer, BookingSerializer, ApartmentPhotoSerializer # Импортируем сериализаторы
 from .permissions import IsOwnerOrReadOnly, IsAuthorOrReadOnly # Импортируем пользовательские права доступа
-
+from .gemini_utils import generate_apartment_description
+from rest_framework.decorators import action
 # --- ViewSet для Удобств (Amenity) ---
 # Создадим простой ViewSet только для чтения списка удобств,
 # это может быть полезно для фронтенда, чтобы знать, какие удобства доступны.
@@ -40,7 +41,40 @@ class ApartmentViewSet(viewsets.ModelViewSet):
     ordering_fields = ['price', 'created_at'] # Поля для сортировки
     ordering = ['-created_at'] # Сортировка по умолчанию
     # --------------------------------
-    
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
+
+    # --- НОВОЕ ДЕЙСТВИЕ ДЛЯ ГЕНЕРАЦИИ ОПИСАНИЯ ---
+    @action(detail=True, methods=['post'], permission_classes=[IsOwnerOrReadOnly])
+    # detail=True - действие для конкретного объекта (нужен /pk/)
+    # methods=['post'] - будем вызывать через POST-запрос
+    # permission_classes=[IsOwnerOrReadOnly] - только владелец может генерировать описание для своей квартиры
+    def generate_description(self, request, pk=None):
+        """
+        Генерирует описание для квартиры с помощью Gemini API.
+        """
+        apartment = self.get_object() # Получаем объект квартиры по pk из URL
+
+        # Проверяем права еще раз (хотя permission_classes уже должны были это сделать)
+        self.check_object_permissions(request, apartment)
+
+        # Вызываем нашу функцию-помощник
+        description = generate_apartment_description(apartment)
+
+        if description:
+            # Если описание сгенерировано, возвращаем его
+            # Можно также сразу сохранить его в поле description квартиры:
+            # apartment.description = description
+            # apartment.save(update_fields=['description'])
+            # Но пока просто вернем текст, чтобы пользователь мог его посмотреть/отредактировать
+            return Response({'description': description}, status=status.HTTP_200_OK)
+        else:
+            # Если произошла ошибка при генерации
+            return Response(
+                {'error': 'Failed to generate description. Please try again later.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 class MyApartmentListView(generics.ListAPIView):
     """
     Представление для получения списка квартир,
