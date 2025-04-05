@@ -10,3 +10,4 @@ db.sqlite3
 /secrets.json
 /secrets.ini
 .docker.env
+.env/
