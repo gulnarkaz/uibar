@@ -1,9 +1,18 @@
 # apartments/serializers.py
 from rest_framework import serializers
-from .models import Apartment, Booking, Amenity, Review # Импортируем обе модели и Review
+from .models import Apartment, Booking, Amenity, Review, ApartmentPhoto # Импортируем обе модели и Review
 from auth_app.serializers import UserSerializer # Импортируем UserSerializer для владельца
 from django.utils import timezone
 
+class ApartmentPhotoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ApartmentPhoto
+        fields = ['id', 'image', 'apartment'] # Добавим 'apartment' для ассоциации
+        read_only_fields = ['id']
+        #используем PrimaryKeyRelatedField.
+        extra_kwargs = {
+              'apartment': {'write_only': True, 'required': True}
+        }
 # --- Сериализатор для Удобств ---
 class AmenitySerializer(serializers.ModelSerializer):
     class Meta:
@@ -25,7 +34,7 @@ class ApartmentSerializer(serializers.ModelSerializer):
         source='amenities',         # Указывает, что данные нужно сохранить в поле 'amenities' модели
         required=False              # Не обязательно передавать при создании/обновлении
     )
-
+    photos = ApartmentPhotoSerializer(many=True, read_only=True) # read_only, т.к. фото загружаются отдельно
     class Meta:
         model = Apartment
         # Включаем все нужные поля модели и поле 'amenity_ids' для записи
@@ -41,13 +50,14 @@ class ApartmentSerializer(serializers.ModelSerializer):
             'max_guests',       # Новое поле
             'beds',             # Новое поле
             'amenities',        # Список объектов удобств (только чтение)
-            'amenity_ids',      # Список ID удобств (только запись)
+            'amenity_ids',  # Список ID удобств (только запись)
+            'photos',           # Список объектов фото (только чтение)
             'is_active',
             'created_at',
             'updated_at',
         ]
         # Явно указываем поля только для чтения
-        read_only_fields = ['id', 'owner', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'owner', 'created_at', 'updated_at', 'photos']
 
     # Валидация цены (остается как была)
     def validate_price(self, value):

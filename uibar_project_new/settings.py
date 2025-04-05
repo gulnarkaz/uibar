@@ -217,3 +217,5 @@ SIMPLE_JWT = {
     "JTI_CLAIM": "jti",
     'USER_AUTHENTICATION_RULE': 'rest_framework_simplejwt.authentication.default_user_authentication_rule', # Стандартное правило
 }
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'

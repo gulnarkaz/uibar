@@ -162,3 +162,29 @@ class Booking(models.Model):
 
     def __str__(self):
         return f"Бронь {self.user.username} на {self.apartment.title} ({self.check_in_date} - {self.check_out_date})"
+
+class ApartmentPhoto(models.Model):
+    """Модель для хранения фотографий квартиры."""
+    apartment = models.ForeignKey(
+        Apartment,
+        on_delete=models.CASCADE, # При удалении квартиры удаляем и ее фото
+        related_name='photos',    # Для доступа apartment.photos.all()
+        verbose_name="Квартира"
+    )
+    # Поле для хранения самого изображения
+    # upload_to='apartments/%Y/%m/%d/' - указывает, куда сохранять файлы
+    # файлы будут сохраняться в MEDIA_ROOT/apartments/год/месяц/день/
+    image = models.ImageField(upload_to='apartments/%Y/%m/%d/', verbose_name="Фото")
+    # Можно добавить поле для описания фото (alt текст)
+    # caption = models.CharField(max_length=200, blank=True, verbose_name="Подпись")
+    # Можно добавить поле для порядка сортировки фото
+    # order = models.PositiveIntegerField(default=0, blank=False, null=False)
+
+    class Meta:
+        ordering = ['pk'] # Или ['order'] если добавишь поле order
+        verbose_name = "Фото квартиры"
+        verbose_name_plural = "Фотографии квартир"
+
+    def __str__(self):
+        # Возвращаем путь к файлу или ID
+        return f"Фото {self.id} для {self.apartment.title}"

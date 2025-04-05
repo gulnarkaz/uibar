@@ -1,7 +1,7 @@
 # apartments/urls.py
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import ApartmentViewSet, AmenityViewSet, MyApartmentListView, ReviewViewSet, BookingViewSet # Импортируем наши ViewSet'ы
+from .views import ApartmentViewSet, AmenityViewSet, MyApartmentListView, ReviewViewSet, BookingViewSet, ApartmentPhotoUploadView, ApartmentPhotoDestroyView # Импортируем наши ViewSet'ы
 
 app_name = 'apartments' # Имя приложения для пространства имен URL (не обязательно для API, но хорошая практика)
 
@@ -25,4 +25,8 @@ urlpatterns = [
     # так как основной префикс 'api/' будет добавлен в главном urls.py проекта
     path('', include(router.urls)),
     path('my-apartments/', MyApartmentListView.as_view(), name='my-apartment-list'),
+    # --- URL для Фото ---
+    path('photos/upload/', ApartmentPhotoUploadView.as_view(), name='photo-upload'),
+    path('photos/<int:pk>/delete/', ApartmentPhotoDestroyView.as_view(), name='photo-delete'),
+
 ]

@@ -1,9 +1,10 @@
 # apartments/views.py
 from rest_framework import viewsets, permissions, status, filters, generics, serializers # Добавляем filters и serializers
 from rest_framework.response import Response # Добавляем Response
+from rest_framework.parsers import MultiPartParser, FormParser
 from django_filters.rest_framework import DjangoFilterBackend # Добавляем DjangoFilterBackend
-from .models import Apartment, Amenity, Booking, Review # Импортируем модели
-from .serializers import ApartmentSerializer, AmenitySerializer, ReviewSerializer, BookingSerializer # Импортируем сериализаторы
+from .models import Apartment, Amenity, Booking, Review, ApartmentPhoto # Импортируем модели
+from .serializers import ApartmentSerializer, AmenitySerializer, ReviewSerializer, BookingSerializer, ApartmentPhotoSerializer # Импортируем сериализаторы
 from .permissions import IsOwnerOrReadOnly, IsAuthorOrReadOnly # Импортируем пользовательские права доступа
 
 # --- ViewSet для Удобств (Amenity) ---
@@ -111,3 +112,47 @@ class BookingViewSet(viewsets.ModelViewSet):
         context = super().get_serializer_context()
         context.update({"request": self.request})
         return context
+class ApartmentPhotoUploadView(generics.CreateAPIView):
+    """
+    Представление для загрузки одного фото для квартиры.
+    Принимает POST запрос с 'image' (файл) и 'apartment' (ID квартиры).
+    """
+    queryset = ApartmentPhoto.objects.all()
+    serializer_class = ApartmentPhotoSerializer
+    permission_classes = [permissions.IsAuthenticated] # Только авторизованные могут загружать
+    # Указываем парсеры для обработки данных формы (multipart/form-data)
+    parser_classes = (MultiPartParser, FormParser)
+
+    def perform_create(self, serializer):
+        # Проверяем, является ли пользователь владельцем квартиры, к которой добавляется фото
+        apartment_id = self.request.data.get('apartment')
+        try:
+            apartment = Apartment.objects.get(pk=apartment_id)
+            if apartment.owner != self.request.user:
+                # Можно вызывать PermissionDenied или ValidationError
+                raise serializers.ValidationError("You can only add photos to your own apartments.")
+            # Если все ок, сохраняем фото, связь с квартирой установится через validated_data
+            serializer.save()
+        except Apartment.DoesNotExist:
+             raise serializers.ValidationError("Apartment not found.")
+        # В сериализаторе нужно будет УБРАТЬ read_only=True для apartment
+        # или передать apartment напрямую: serializer.save(apartment=apartment)
+
+class ApartmentPhotoDestroyView(generics.DestroyAPIView):
+    """
+    Представление для удаления фото квартиры.
+    """
+    queryset = ApartmentPhoto.objects.all()
+    serializer_class = ApartmentPhotoSerializer # Не особо нужен для DELETE, но требуется
+    permission_classes = [permissions.IsAuthenticated] # Только авторизованные
+
+    def get_object(self):
+        # Получаем объект фото (как в стандартном DestroyAPIView)
+        obj = super().get_object()
+        # Проверяем, что пользователь является владельцем КВАРТИРЫ, к которой относится фото
+        if obj.apartment.owner != self.request.user:
+            # Генерируем ошибку прав доступа
+            self.permission_denied(
+                self.request, message="You can only delete photos from your own apartments."
+            )
+        return obj

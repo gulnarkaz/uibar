@@ -17,6 +17,10 @@ Including another URLconf
 # uibar_project_new/urls.py
 from django.contrib import admin
 from django.urls import path, include # Не забудь добавить include
+# --- Добавляем импорты для медиафайлов ---
+from django.conf import settings
+from django.conf.urls.static import static
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -28,3 +32,6 @@ urlpatterns = [
     # Префикс /api/ будет добавлен ко всем URL из router (т.е. /api/apartments/ и /api/amenities/)
     path('api/', include('apartments.urls', namespace='apartments')),
 ]
+# --- Добавляем раздачу медиафайлов в режиме DEBUG ---
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
