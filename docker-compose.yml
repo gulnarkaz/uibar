@@ -1,23 +1,66 @@
 # docker-compose.yml
 
-version: '3.8' # Указываем версию синтаксиса Docker Compose
+version: '3.8'
 
 services:
-  # Определяем сервис для базы данных
+  # Сервис базы данных (остается как был)
   db:
-    image: postgres:15 # Используем официальный образ PostgreSQL версии 15
-    container_name: postgres_db_apartments # Имя контейнера для удобства
+    image: postgres:15
+    container_name: postgres_db_apartments
     volumes:
-      - postgres_data:/var/lib/postgresql/data/ # Связываем том для сохранения данных БД между перезапусками контейнера
+      - postgres_data:/var/lib/postgresql/data/
     environment:
-      # Переменные окружения для настройки PostgreSQL
-      POSTGRES_DB: apartments_db # Имя базы данных, которая будет создана
-      POSTGRES_USER: apartment_user # Имя пользователя для подключения к БД
-      POSTGRES_PASSWORD: complexpassword123 # Пароль для пользователя (ЗАМЕНИ НА СВОЙ НАДЕЖНЫЙ ПАРОЛЬ!)
+      # --- Используй переменные окружения ---
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      # --------------------------------------
     ports:
-      - "5433:5432" # Пробрасываем порт из контейнера (5432) на твой компьютер (5433). Можно использовать 5432:5432, если порт 5432 свободен.
-    restart: unless-stopped # Политика перезапуска контейнера
+      - "5433:5432" # Оставляем для подключения через DBeaver с твоего компа
+    restart: unless-stopped
+    healthcheck:
+      # Use environment variables defined above for the check
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB -h localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  # --- НОВЫЙ СЕРВИС ДЛЯ DJANGO ПРИЛОЖЕНИЯ ---
+  web:
+    # Указываем Docker собрать образ из Dockerfile в текущей директории (.)
+    build: .
+    container_name: django_web_app
+    # Команда для запуска (можно переопределить CMD из Dockerfile)
+    # command: gunicorn uibar_project_new.wsgi:application --bind 0.0.0.0:8000
+    ports:
+      # Пробрасываем порт 8000 из контейнера на порт 8000 твоего компьютера
+      - "8000:8000"
+    # Используем файл .env для передачи переменных окружения в контейнер web
+    env_file:
+      - .env
+    # Указываем, что сервис web зависит от сервиса db
+    # docker-compose сначала запустит db, а потом web
+    depends_on:
+      db:
+        condition: service_healthy # Waits for the healthcheck
+    # Указываем, что контейнер web должен быть перезапущен, если он остановится
+    restart: unless-stopped
+    # --- Монтирование томов (опционально для разработки) ---
+    # volumes:
+    #   # Монтируем текущую директорию с кодом внутрь контейнера для live reload
+    #   # При этом шаги COPY в Dockerfile будут частично перекрыты
+    #   - .:/app
+    #   # Оставляем анонимный том для staticfiles, чтобы collectstatic не затирался при монтировании кода
+    #   - /app/staticfiles
+    #   # Можно монтировать media
+    #   - ./media:/app/media
+    # --- НЕ ИСПОЛЬЗУЕМ МОНТИРОВАНИЕ КОДА ДЛЯ ПРОДАКШЕН-СБОРКИ ---
+    # --- Но можем монтировать media, если НЕ используем внешнее хранилище ---
+    volumes:
+        - ./media:/app/media # Монтируем локальную папку media внутрь контейнера
+
+  # ----------------------------------------
 
 volumes:
-  # Определяем том для хранения данных PostgreSQL
   postgres_data:
+  # Можно добавить именованный том для статики, если нужно
+  # static_volume: 

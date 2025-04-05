@@ -1,0 +1,32 @@
+# .dockerignore
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose.yml
+
+# Poetry / Python environments
+.venv
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE folders
+.vscode/
+.idea/
+
+# OS files
+*.DS_Store
+Thumbs.db
+
+# Secrets / Environment
+.env
+
+# Media files (обычно не включаются в образ, монтируются или хранятся отдельно)
+/media/
+
+# Static files collected by Django (будут собраны внутри контейнера)
+/staticfiles/
