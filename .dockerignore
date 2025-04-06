@@ -2,7 +2,6 @@
 
 # Git
 .git
-.gitignore
 
 # Docker
 Dockerfile
@@ -23,7 +22,7 @@ __pycache__/
 Thumbs.db
 
 # Secrets / Environment
-.env
+#.env
 
 # Media files (обычно не включаются в образ, монтируются или хранятся отдельно)
 /media/

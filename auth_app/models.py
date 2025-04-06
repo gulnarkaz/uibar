@@ -23,12 +23,13 @@ class User(AbstractUser):
         blank=False, 
         null=False
     )
-    phone = models.CharField(
-        max_length=20, 
-        blank=True, 
-        null=True, 
-        verbose_name="Номер телефона"
+    city = models.CharField(
+        max_length=100,
+        blank=True,   
+        null=True,      
+        verbose_name='Город'
     )
+
 
     def __str__(self):
         return self.username

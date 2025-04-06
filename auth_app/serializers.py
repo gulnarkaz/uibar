@@ -101,8 +101,12 @@ class RegisterSerializer(serializers.ModelSerializer):
         # Теперь устанавливаем остальные поля для созданного объекта user
         user.first_name = first_name
         user.last_name = last_name
-        user.phone = phone
-        user.city = city
+        # Ensure the User model has a 'phone' field before assigning
+        if hasattr(user, 'phone'):
+            user.phone = phone
+        # Ensure the User model has a 'city' field before assigning
+        if hasattr(user, 'city'):
+            user.city = city
 
         # Сохраняем изменения (добавленные поля)
         user.save() # <-- ВАЖНО: Сохраняем после добавления доп. полей
