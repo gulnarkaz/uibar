@@ -80,4 +80,4 @@
     # Команда для запуска приложения
     # Используем Gunicorn как WSGI сервер
     # Стало: Запускаем gunicorn как модуль Python
-    CMD ["python", "-m", "gunicorn", "uibar_project_new.wsgi:application", "--bind", "0.0.0.0:8000"]
+    CMD ["python", "-m", "gunicorn", "uibar_project_new.wsgi:application", "--bind", "0.0.0.0:8000", "--workers=3", "--timeout=120"]
